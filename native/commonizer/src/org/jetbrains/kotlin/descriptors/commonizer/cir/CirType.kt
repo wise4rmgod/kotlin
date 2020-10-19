@@ -26,6 +26,7 @@ sealed class CirType
  */
 abstract class CirSimpleType : CirType(), CirHasVisibility {
     abstract val classifierId: CirClassifierId
+    abstract val outerType: CirSimpleType?
     abstract val arguments: List<CirTypeProjection>
     abstract val isMarkedNullable: Boolean
 }

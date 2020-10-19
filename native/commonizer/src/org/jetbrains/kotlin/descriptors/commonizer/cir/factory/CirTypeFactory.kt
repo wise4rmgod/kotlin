@@ -30,33 +30,76 @@ object CirTypeFactory {
         val source = if (useAbbreviation && source is AbbreviatedType) source.abbreviation else source
         val classifierDescriptor: ClassifierDescriptor = source.declarationDescriptor
 
-        return create(
-            classifierId = CirClassifierIdFactory.create(classifierDescriptor),
-            visibility = (classifierDescriptor as? ClassifierDescriptorWithTypeParameters)?.visibility ?: DescriptorVisibilities.UNKNOWN,
-            arguments = source.arguments.map { projection ->
+        return if (classifierDescriptor is ClassifierDescriptorWithTypeParameters) {
+            val arguments = source.arguments.map { projection ->
                 CirTypeProjection(
                     projectionKind = projection.projectionKind,
                     isStarProjection = projection.isStarProjection,
                     type = create(projection.type)
                 )
-            },
-            isMarkedNullable = source.isMarkedNullable
-        )
+            }
+
+            createWithAllOuterTypes(
+                classifierDescriptor = classifierDescriptor,
+                arguments = arguments,
+                isMarkedNullable = source.isMarkedNullable
+            )
+        } else {
+            create(
+                classifierId = CirClassifierIdFactory.create(classifierDescriptor),
+                outerType = null,
+                visibility = DescriptorVisibilities.UNKNOWN,
+                arguments = emptyList(),
+                isMarkedNullable = source.isMarkedNullable
+            )
+        }
     }
 
     fun create(
-            classifierId: CirClassifierId,
-            visibility: DescriptorVisibility,
-            arguments: List<CirTypeProjection>,
-            isMarkedNullable: Boolean
+        classifierId: CirClassifierId,
+        outerType: CirSimpleType?,
+        visibility: DescriptorVisibility,
+        arguments: List<CirTypeProjection>,
+        isMarkedNullable: Boolean
     ): CirSimpleType {
         return interner.intern(
             CirSimpleTypeImpl(
                 classifierId = classifierId,
+                outerType = outerType,
                 visibility = visibility,
                 arguments = arguments,
                 isMarkedNullable = isMarkedNullable
             )
+        )
+    }
+
+    private fun createWithAllOuterTypes(
+        classifierDescriptor: ClassifierDescriptorWithTypeParameters,
+        arguments: List<CirTypeProjection>,
+        isMarkedNullable: Boolean
+    ): CirSimpleType {
+        val outerType: CirSimpleType?
+        val remainingArguments: List<CirTypeProjection>
+
+        if (classifierDescriptor.isInner) {
+            val declaredTypeParametersCount = classifierDescriptor.declaredTypeParameters.size
+            outerType = createWithAllOuterTypes(
+                classifierDescriptor = classifierDescriptor.containingDeclaration as ClassifierDescriptorWithTypeParameters,
+                arguments = arguments.subList(0, arguments.size - declaredTypeParametersCount),
+                isMarkedNullable = false // don't pass nullable flag to outer types
+            )
+            remainingArguments = arguments.subList(arguments.size - declaredTypeParametersCount, arguments.size)
+        } else {
+            outerType = null
+            remainingArguments = arguments
+        }
+
+        return create(
+            classifierId = CirClassifierIdFactory.create(classifierDescriptor),
+            outerType = outerType,
+            visibility = classifierDescriptor.visibility,
+            arguments = remainingArguments,
+            isMarkedNullable = isMarkedNullable
         )
     }
 }

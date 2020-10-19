@@ -162,6 +162,7 @@ private class DeprecatedAnnotationCommonizer : Commonizer<CirAnnotation, CirAnno
 
         private fun buildAnnotationType(classId: ClassId) = CirTypeFactory.create(
             classifierId = CirClassifierIdFactory.createForClass(classId),
+            outerType = null,
             visibility = DescriptorVisibilities.PUBLIC,
             arguments = emptyList(),
             isMarkedNullable = false

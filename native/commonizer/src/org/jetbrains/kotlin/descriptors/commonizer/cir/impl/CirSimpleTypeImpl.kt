@@ -11,15 +11,17 @@ import org.jetbrains.kotlin.descriptors.commonizer.utils.appendHashCode
 import org.jetbrains.kotlin.descriptors.commonizer.utils.hashCode
 
 data class CirSimpleTypeImpl(
-        override val classifierId: CirClassifierId,
-        override val visibility: DescriptorVisibility, // visibility of the classifier descriptor
-        override val arguments: List<CirTypeProjection>,
-        override val isMarkedNullable: Boolean
+    override val classifierId: CirClassifierId,
+    override val outerType: CirSimpleType?,
+    override val visibility: DescriptorVisibility, // visibility of the classifier descriptor
+    override val arguments: List<CirTypeProjection>,
+    override val isMarkedNullable: Boolean
 ) : CirSimpleType() {
     // See also org.jetbrains.kotlin.types.KotlinType.cachedHashCode
     private var cachedHashCode = 0
 
     private fun computeHashCode() = hashCode(classifierId)
+        .appendHashCode(outerType)
         .appendHashCode(visibility)
         .appendHashCode(arguments)
         .appendHashCode(isMarkedNullable)
@@ -36,10 +38,11 @@ data class CirSimpleTypeImpl(
     override fun equals(other: Any?) = when {
         other === this -> true
         other is CirSimpleType -> {
-            isMarkedNullable == other.isMarkedNullable
-                    && classifierId == other.classifierId
+            classifierId == other.classifierId
+                    && isMarkedNullable == other.isMarkedNullable
                     && visibility == other.visibility
                     && arguments == other.arguments
+                    && outerType == other.outerType
         }
         else -> false
     }

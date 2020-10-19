@@ -44,6 +44,12 @@ private fun areSimpleTypesEqual(cache: CirClassifiersCache, a: CirSimpleType, b:
             return false
         }
 
+        val aOuterType = a.outerType
+        val bOuterType = b.outerType
+        if (aOuterType !== bOuterType) {
+            if (!areTypesEqual(cache, aOuterType ?: return false, bOuterType ?: return false)) return false
+        }
+
         if (aId is CirClassifierId.ClassOrTypeAlias) {
             if (bId !is CirClassifierId.ClassOrTypeAlias || aId.classId != bId.classId) return false
         }

@@ -131,7 +131,14 @@ private class TypeAliasExpectClassCommonizer : AbstractStandardCommonizer<CirTyp
 
     override fun doCommonizeWith(next: CirTypeAlias) =
         next.typeParameters.isEmpty() // TAs with declared type parameters can't be commonized
-                && next.underlyingType.arguments.isEmpty() // TAs with functional types or types with parameters at the right-hand side can't be commonized
+                && hasNoArguments(next.underlyingType) // TAs with functional types or types with arguments at the right-hand side can't be commonized
                 && next.underlyingType.classifierId is CirClassifierId.Class // right-hand side could have only class
                 && classVisibility.commonizeWith(next.underlyingType) // the visibilities of the right-hand classes should be equal
+
+    private tailrec fun hasNoArguments(type: CirSimpleType?): Boolean =
+        when {
+            type == null -> true
+            type.arguments.isNotEmpty() -> false
+            else -> hasNoArguments(type.outerType)
+        }
 }

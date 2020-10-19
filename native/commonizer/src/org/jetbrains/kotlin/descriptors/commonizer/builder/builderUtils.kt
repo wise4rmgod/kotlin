@@ -124,7 +124,7 @@ internal fun CirSimpleType.buildType(
         }
     }
 
-    val arguments = arguments.map { it.buildArgument(targetComponents, typeParameterResolver, expandTypeAliases) }
+    val arguments = collectArguments(targetComponents, typeParameterResolver, expandTypeAliases)
     val simpleType = simpleType(
         annotations = Annotations.EMPTY,
         constructor = classifier.typeConstructor,
@@ -147,6 +147,24 @@ internal fun CirSimpleType.buildType(
 private inline fun <reified T : ClassifierDescriptorWithTypeParameters> ClassifierDescriptorWithTypeParameters.checkClassifierType(): T {
     check(this is T) { "Mismatched classifier kinds.\nFound: ${this::class.java}, $this\nShould be: ${T::class.java}" }
     return this
+}
+
+private fun CirSimpleType.collectArguments(
+    targetComponents: TargetDeclarationsBuilderComponents,
+    typeParameterResolver: TypeParameterResolver,
+    expandTypeAliases: Boolean
+): List<TypeProjection> {
+    if (outerType == null)
+        return arguments.map { it.buildArgument(targetComponents, typeParameterResolver, expandTypeAliases) }
+
+    val allTypes = generateSequence(this) { it.outerType }.toList()
+    val arguments = mutableListOf<TypeProjection>()
+
+    for (index in allTypes.size - 1 downTo 0) {
+        allTypes[index].arguments.mapTo(arguments) { it.buildArgument(targetComponents, typeParameterResolver, expandTypeAliases) }
+    }
+
+    return arguments.toList()
 }
 
 private fun CirTypeProjection.buildArgument(
