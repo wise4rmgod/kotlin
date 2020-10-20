@@ -340,7 +340,6 @@ abstract class IncrementalCompilerRunner<
         currentBuildInfo: BuildInfo,
         dirtyData: DirtyData
     ) {
-        val prevDiffs = BuildDiffsStorage.readFromFile(buildHistoryFile, reporter)?.buildDiffs ?: emptyList()
         val newDiff = if (compilationMode is CompilationMode.Incremental) {
             BuildDifference(currentBuildInfo.startTS, true, dirtyData)
         } else {
@@ -348,7 +347,8 @@ abstract class IncrementalCompilerRunner<
             BuildDifference(currentBuildInfo.startTS, false, emptyDirtyData)
         }
 
-        BuildDiffsStorage.writeToFile(buildHistoryFile, BuildDiffsStorage(prevDiffs + newDiff), reporter)
+        //TODO old history build should be restored in case of build fail
+        BuildDiffsStorage.writeToFile(buildHistoryFile, BuildDiffsStorage(listOf(newDiff)), reporter)
     }
 
     companion object {
