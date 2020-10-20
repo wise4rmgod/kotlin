@@ -12,6 +12,10 @@ typealias E = A // different TAs expanded to the same class at the RHS
 typealias F = List<String> // parameterized type at the RHS
 typealias H<T> = List<T> // TA with own parameters
 
+typealias I2<T> = List<T>
+typealias I3<R> = List<R>
+typealias I4 = List<String>
+
 typealias J<T> = Function<T> // function type at the RHS
 typealias M = () -> Unit // same return type
 typealias O = (String) -> Int // same argument type

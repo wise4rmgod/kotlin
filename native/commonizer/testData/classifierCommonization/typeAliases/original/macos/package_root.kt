@@ -15,6 +15,10 @@ typealias G = List<String> // different parameterized types at the RHS
 typealias H<T> = List<T> // TA with own parameters
 typealias I<R> = List<R> // TAs with own parameters with different names
 
+typealias I2<T> = List<T>
+typealias I3<R> = I2<R>
+typealias I4 = I2<String>
+
 typealias J<T> = Function<T> // function type at the RHS
 typealias K<R> = Function<R> // function types with different type parameter names
 typealias L<T> = Function<T> // different kinds of function types
