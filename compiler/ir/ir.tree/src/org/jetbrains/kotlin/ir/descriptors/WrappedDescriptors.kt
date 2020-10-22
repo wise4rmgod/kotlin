@@ -726,7 +726,7 @@ open class WrappedScriptDescriptor(
     }
 
     override fun getDefaultFunctionTypeForSamInterface(): SimpleType? {
-        TODO("not implemented")
+        TODO("not yet implemented")
     }
 
     override fun isDefinitelyNotSamInterface(): Boolean {
@@ -734,6 +734,18 @@ open class WrappedScriptDescriptor(
     }
 
     override fun getPriority(): Int {
+        TODO("Not yet implemented")
+    }
+
+    override fun getExplicitConstructorParameters(): MutableList<ValueParameterDescriptor> {
+        TODO("Not yet implemented")
+    }
+
+    override fun getImplicitReceiversParameters(): MutableList<ValueParameterDescriptor> {
+        TODO("Not yet implemented")
+    }
+
+    override fun getScriptProvidedPropertiesParameters(): MutableList<ValueParameterDescriptor> {
         TODO("Not yet implemented")
     }
 
