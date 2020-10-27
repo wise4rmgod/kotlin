@@ -214,7 +214,9 @@ class ExpressionCodegen(
         mv.visitCode()
         val startLabel = markNewLabel()
         val info = BlockInfo()
-        val body = irFunction.body!!
+        val body = irFunction.body
+            ?: error("Function has no body: ${irFunction.render()}")
+
         generateNonNullAssertions()
         generateFakeContinuationConstructorIfNeeded()
         val result = body.accept(this, info)
