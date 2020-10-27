@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.calls.components.isVararg
 import org.jetbrains.kotlin.resolve.descriptorUtil.builtIns
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
+import org.jetbrains.kotlin.resolve.jvm.annotations.JVM_SYNTHETIC_ANNOTATION_FQ_NAME
 import org.jetbrains.kotlin.resolve.lazy.LazyClassContext
 import org.jetbrains.kotlin.resolve.lazy.declarations.ClassMemberDeclarationProvider
 import org.jetbrains.kotlin.resolve.lazy.descriptors.LazyClassDescriptor
@@ -44,6 +45,15 @@ object KSerializerDescriptorResolver {
             level = "HIDDEN"
         )
     }
+
+    fun createJvmSyntheticAnnotation(module: ModuleDescriptor, sourceElement: SourceElement): AnnotationDescriptor {
+        val jvmSyntheticClass = module.findClassAcrossModuleDependencies(ClassId.topLevel(JVM_SYNTHETIC_ANNOTATION_FQ_NAME))
+            ?: error("Can't load @JvmSynthetic annotation")
+        return AnnotationDescriptorImpl(jvmSyntheticClass.defaultType, emptyMap(), sourceElement)
+    }
+
+    fun Annotations.Companion.Synthetic(module: ModuleDescriptor, sourceElement: SourceElement) =
+        create(listOf(createJvmSyntheticAnnotation(module, sourceElement)))
 
     fun isSerialInfoImpl(thisDescriptor: ClassDescriptor): Boolean {
         return thisDescriptor.name == IMPL_NAME
@@ -218,36 +228,36 @@ object KSerializerDescriptorResolver {
     }
 
     private fun createSerializableClassPropertyDescriptor(
-        companionDescriptor: ClassDescriptor,
+        serializerDescriptor: ClassDescriptor,
         classDescriptor: ClassDescriptor
     ): PropertyDescriptor =
-        doCreateSerializerProperty(companionDescriptor, classDescriptor, SerialEntityNames.SERIAL_DESC_FIELD_NAME)
+        doCreateSerializerProperty(serializerDescriptor, classDescriptor, SerialEntityNames.SERIAL_DESC_FIELD_NAME)
 
     private fun doCreateSerializerProperty(
-        companionDescriptor: ClassDescriptor,
+        serializerDescriptor: ClassDescriptor,
         classDescriptor: ClassDescriptor,
         name: Name
     ): PropertyDescriptor {
         val typeParam = listOf(createProjection(classDescriptor.defaultType, Variance.INVARIANT, null))
-        val propertyFromSerializer = companionDescriptor.getGeneratedSerializerDescriptor().getMemberScope(typeParam)
+        val propertyFromSerializer = serializerDescriptor.getGeneratedSerializerDescriptor().getMemberScope(typeParam)
             .getContributedVariables(name, NoLookupLocation.FROM_BUILTINS).single()
 
         val propertyDescriptor = PropertyDescriptorImpl.create(
-            companionDescriptor, Annotations.EMPTY, Modality.OPEN, DescriptorVisibilities.PUBLIC, false, name,
-            CallableMemberDescriptor.Kind.SYNTHESIZED, companionDescriptor.source, false, false, false, false, false, false
+            serializerDescriptor, Annotations.EMPTY, Modality.OPEN, DescriptorVisibilities.PUBLIC, false, name,
+            CallableMemberDescriptor.Kind.SYNTHESIZED, serializerDescriptor.source, false, false, false, false, false, false
         )
 
         val extensionReceiverParameter: ReceiverParameterDescriptor? = null // kludge to disambiguate call
         propertyDescriptor.setType(
             propertyFromSerializer.type,
             propertyFromSerializer.typeParameters,
-            companionDescriptor.thisAsReceiverParameter,
+            serializerDescriptor.thisAsReceiverParameter,
             extensionReceiverParameter
         )
 
         val propertyGetter = PropertyGetterDescriptorImpl(
-            propertyDescriptor, Annotations.EMPTY, Modality.OPEN, DescriptorVisibilities.PUBLIC, false, false, false,
-            CallableMemberDescriptor.Kind.SYNTHESIZED, null, companionDescriptor.source
+            propertyDescriptor, Annotations.Synthetic(classDescriptor.module, classDescriptor.source), Modality.OPEN, DescriptorVisibilities.PUBLIC, false, false, false,
+            CallableMemberDescriptor.Kind.SYNTHESIZED, null, serializerDescriptor.source
         )
 
         propertyGetter.initialize(propertyFromSerializer.type)
@@ -258,23 +268,27 @@ object KSerializerDescriptorResolver {
     }
 
     private fun doCreateSerializerFunction(
-        companionDescriptor: ClassDescriptor,
+        serializerDescriptor: ClassDescriptor,
         name: Name
     ): SimpleFunctionDescriptor {
         val functionDescriptor = SimpleFunctionDescriptorImpl.create(
-            companionDescriptor, Annotations.EMPTY, name, CallableMemberDescriptor.Kind.SYNTHESIZED, companionDescriptor.source
+            serializerDescriptor,
+            Annotations.Synthetic(serializerDescriptor.module, serializerDescriptor.source),
+            name,
+            CallableMemberDescriptor.Kind.SYNTHESIZED,
+            serializerDescriptor.source
         )
 
-        val serializableClassOnImplSite = extractKSerializerArgumentFromImplementation(companionDescriptor)
+        val serializableClassOnImplSite = extractKSerializerArgumentFromImplementation(serializerDescriptor)
             ?: throw AssertionError("Serializer does not implement ${SerialEntityNames.KSERIALIZER_CLASS}??")
 
         val typeParam = listOf(createProjection(serializableClassOnImplSite, Variance.INVARIANT, null))
-        val functionFromSerializer = companionDescriptor.getGeneratedSerializerDescriptor().getMemberScope(typeParam)
+        val functionFromSerializer = serializerDescriptor.getGeneratedSerializerDescriptor().getMemberScope(typeParam)
             .getContributedFunctions(name, NoLookupLocation.FROM_BUILTINS).single()
 
         functionDescriptor.initialize(
             null,
-            companionDescriptor.thisAsReceiverParameter,
+            serializerDescriptor.thisAsReceiverParameter,
             functionFromSerializer.typeParameters,
             functionFromSerializer.valueParameters.map { it.copy(functionDescriptor, it.name, it.index) },
             functionFromSerializer.returnType,
@@ -497,8 +511,8 @@ object KSerializerDescriptorResolver {
                 Name.identifier("JvmStatic")
             )
         )!!
-        val jvmStaticAnnotation = AnnotationDescriptorImpl(jvmStaticClass.defaultType, mapOf(), jvmStaticClass.source)
-        val annotations = Annotations.create(listOf(jvmStaticAnnotation))
+        val jvmStaticAnnotation = AnnotationDescriptorImpl(jvmStaticClass.defaultType, mapOf(), thisClass.source)
+        val annotations = Annotations.create(listOf(jvmStaticAnnotation, createJvmSyntheticAnnotation(thisClass.module, thisClass.source)))
 
         val f = SimpleFunctionDescriptorImpl.create(
             thisClass,

@@ -138,6 +138,7 @@ internal fun ImplementationBodyCodegen.generateMethod(
     this.functionCodegen.generateMethod(OtherOrigin(this.myClass.psiOrParent, function), function,
                                         object : FunctionGenerationStrategy.CodegenBased(this.state) {
                                             override fun doGenerateBody(codegen: ExpressionCodegen, signature: JvmMethodSignature) {
+                                                MemberCodegen.markLineNumberForElement(myClass.psiOrParent, codegen.v)
                                                 codegen.v.block(signature, codegen)
                                             }
                                         })

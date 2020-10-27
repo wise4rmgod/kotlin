@@ -1,3 +1,4 @@
+// WITH_RUNTIME
 // This test enshures that analysis ends up without compiler exceptions
 
 import kotlinx.serialization.*

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -33,6 +33,7 @@ import org.jetbrains.kotlin.load.java.JvmAbi;
 import org.jetbrains.kotlin.load.java.SpecialBuiltinMembers;
 import org.jetbrains.kotlin.load.java.descriptors.JavaClassDescriptor;
 import org.jetbrains.kotlin.psi.*;
+import org.jetbrains.kotlin.psi.synthetics.SyntheticClassOrObjectDescriptor;
 import org.jetbrains.kotlin.resolve.*;
 import org.jetbrains.kotlin.resolve.annotations.AnnotationUtilKt;
 import org.jetbrains.kotlin.resolve.calls.util.UnderscoreUtilKt;
@@ -192,6 +193,11 @@ public class FunctionCodegen {
         int flags = getMethodAsmFlags(functionDescriptor, contextKind, state);
 
         if (origin.getOriginKind() == JvmDeclarationOriginKind.SAM_DELEGATION) {
+            flags |= ACC_SYNTHETIC;
+        }
+        if (origin.getOriginKind() == JvmDeclarationOriginKind.CLASS_MEMBER_DELEGATION_TO_DEFAULT_IMPL && containingDeclaration instanceof SyntheticClassOrObjectDescriptor) {
+            // Plugin-generated classes should normally be invisible to Java and code coverage tools,
+            // so we mark inherited default implementations as synthetic.
             flags |= ACC_SYNTHETIC;
         }
         boolean isCompatibilityStubInDefaultImpls = isCompatibilityStubInDefaultImpls(functionDescriptor, methodContext, state.getJvmDefaultMode());

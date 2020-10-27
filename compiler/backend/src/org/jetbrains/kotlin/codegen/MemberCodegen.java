@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -456,8 +456,14 @@ public abstract class MemberCodegen<T extends KtPureElement/* TODO: & KtDeclarat
         if (clInit == null) {
             DeclarationDescriptor contextDescriptor = context.getContextDescriptor();
             SimpleFunctionDescriptorImpl clInitDescriptor = createClInitFunctionDescriptor(contextDescriptor);
+            int flags = ACC_STATIC;
+            if (contextDescriptor instanceof SyntheticClassOrObjectDescriptor) {
+                // Plugin-generated classes should normally be invisible to code coverage tools,
+                // so we mark clinit as synthetic method.
+                flags |= ACC_SYNTHETIC;
+            }
             MethodVisitor mv =
-                    v.newMethod(JvmDeclarationOriginKt.OtherOrigin(contextDescriptor), ACC_STATIC, "<clinit>", "()V", null, null);
+                    v.newMethod(JvmDeclarationOriginKt.OtherOrigin(contextDescriptor), flags, "<clinit>", "()V", null, null);
             clInit = new ExpressionCodegen(mv, new FrameMap(), Type.VOID_TYPE, context.intoFunction(clInitDescriptor), state, this);
         }
         return clInit;
