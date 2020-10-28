@@ -590,6 +590,7 @@ object KSerializerDescriptorResolver {
             result.add(
                 fromSupertypes.first().newCopyBuilder().apply {
                     setOwner(thisDescriptor)
+                    setModality(Modality.FINAL)
                     setKind(CallableMemberDescriptor.Kind.SYNTHESIZED)
                     setDispatchReceiverParameter(thisDescriptor.thisAsReceiverParameter)
                 }.build()!!

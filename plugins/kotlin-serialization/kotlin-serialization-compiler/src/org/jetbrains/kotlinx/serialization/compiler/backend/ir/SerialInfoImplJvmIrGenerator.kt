@@ -5,23 +5,17 @@
 
 package org.jetbrains.kotlinx.serialization.compiler.backend.ir
 
-import org.jetbrains.kotlin.backend.common.ir.createImplicitParameterDeclarationWithWrappedDescriptor
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
-import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
-import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
-import org.jetbrains.kotlin.ir.builders.declarations.*
+import org.jetbrains.kotlin.ir.builders.declarations.addConstructor
+import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrProperty
-import org.jetbrains.kotlin.ir.declarations.impl.IrExternalPackageFragmentImpl
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.impl.*
-import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.defaultType
-import org.jetbrains.kotlin.ir.util.render
+import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlinx.serialization.compiler.extensions.SerializationPluginContext
@@ -37,65 +31,14 @@ class SerialInfoImplJvmIrGenerator(
     override val compilerContext: SerializationPluginContext
         get() = context
 
-    private val jvmNameClass = context.irFactory.buildClass {
-        this.name = DescriptorUtils.JVM_NAME.shortName()
-        this.kind = ClassKind.ANNOTATION_CLASS
-    }.apply {
-        createImplicitParameterDeclarationWithWrappedDescriptor()
-        parent = IrExternalPackageFragmentImpl.createEmptyExternalPackageFragment(
-            context.moduleDescriptor, DescriptorUtils.JVM_NAME.parent()
-        )
-        addConstructor().apply {
-            addValueParameter("name", context.irBuiltIns.stringType)
-        }
-    }
-
+    private val jvmNameClass = context.referenceClass(DescriptorUtils.JVM_NAME)!!.owner
     private val implGenerated = mutableSetOf<IrClass>()
     private val annotationToImpl = mutableMapOf<IrClass, IrClass>()
 
     fun getImplClass(serialInfoAnnotationClass: IrClass): IrClass =
         annotationToImpl.getOrPut(serialInfoAnnotationClass) {
-            val implClassDescriptor = serialInfoAnnotationClass.descriptor.unsubstitutedInnerClassesScope
-                .getContributedClassifier(SerialEntityNames.IMPL_NAME, NoLookupLocation.FROM_BACKEND) as? ClassDescriptor
-                ?: error("No Impl class found for SerialInfo annotation: ${serialInfoAnnotationClass.render()}")
-            val symbol = context.symbolTable.referenceClass(implClassDescriptor)
-            val implClass =
-                if (symbol.isBound) symbol.owner
-                else createImplClassForAnnotationFromDependency(serialInfoAnnotationClass, symbol)
-            generate(implClass)
-            implClass
-        }
-
-    private fun createImplClassForAnnotationFromDependency(
-        annotationClass: IrClass,
-        implClassSymbol: IrClassSymbol,
-    ): IrClass =
-        context.irFactory.createClass(
-            annotationClass.startOffset, annotationClass.endOffset, annotationClass.origin,
-            implClassSymbol, implClassSymbol.descriptor.name, ClassKind.CLASS,
-            DescriptorVisibilities.PUBLIC, Modality.FINAL,
-        ).also { implClass ->
-            implClass.createImplicitParameterDeclarationWithWrappedDescriptor()
-            implClass.parent = annotationClass
-            implClass.addConstructor {
-                visibility = DescriptorVisibilities.PUBLIC
-                isPrimary = true
-            }
-            for (property in annotationClass.declarations) {
-                if (property !is IrProperty) continue
-                val propertyType = property.getter!!.returnType
-                implClass.addProperty {
-                    name = property.name
-                }.apply {
-                    backingField = context.irFactory.buildField {
-                        name = property.name
-                        type = propertyType
-                    }
-                    addGetter {
-                        returnType = propertyType
-                    }
-                }
-            }
+            val implClassSymbol = context.referenceClass(serialInfoAnnotationClass.kotlinFqName.child(SerialEntityNames.IMPL_NAME))
+            implClassSymbol!!.owner.apply(this::generate)
         }
 
     fun generate(irClass: IrClass) {
