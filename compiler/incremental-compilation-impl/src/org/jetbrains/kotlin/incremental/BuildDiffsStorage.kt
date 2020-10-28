@@ -69,11 +69,13 @@ data class BuildDiffsStorage(val buildDiffs: List<BuildDifference>) {
                 ObjectOutputStream(file.outputStream().buffered()).use { output ->
                     output.writeInt(CURRENT_VERSION)
 
-                    //TODO only one diff
-                    val diffsToWrite = storage.buildDiffs.sortedBy { it.ts }.takeLast(MAX_DIFFS_ENTRIES)
-                    //TODO remove it
-                    reporter?.report { "DEBUG LOG: build diff size = ${storage.buildDiffs.size}" }
-                    output.writeInt(diffsToWrite.size)
+                    val diffsToWrite = storage.buildDiffs
+                    val size = diffsToWrite.size
+                    //TODO: only one diff should exist after success test change collection to a single value
+                    if (size != 1) {
+                        reporter?.report { "Found $size build diffs: $diffsToWrite" }
+                    }
+                    output.writeInt(size)
                     for (diff in diffsToWrite) {
                         output.writeBuildDifference(diff)
                     }

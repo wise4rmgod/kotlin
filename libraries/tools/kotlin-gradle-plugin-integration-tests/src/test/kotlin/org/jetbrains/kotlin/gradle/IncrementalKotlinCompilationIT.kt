@@ -29,9 +29,11 @@ class IncrementalKotlinCompilationIT : BaseGradleIT() {
             assertTasksExecuted(":app:compileKotlin", ":lib:compileKotlin")
         }
 
-        project.projectFile("build-cache").exists()
+        project.projectDir.resolve("build-cache").exists()
 
-        project.projectFile("lib/build/kotlin/compiler").delete()
+        //clean kotlin build cache
+        project.projectDir.resolve("lib").resolve("build")
+            .resolve("kotlin").resolve("compileKotlin").deleteRecursively()
 
         //local cache doesn't copy output
         project.build("build", "--build-cache") {
@@ -53,25 +55,25 @@ class IncrementalKotlinCompilationIT : BaseGradleIT() {
             assertTasksExecuted(":app:compileKotlin", ":lib:compileKotlin")
         }
 
-        project.projectFile("lib/src/main/kotlin/bar/B.kt").modify{ it.replace("A", "UNKNOWN_CLASS") }
+        project.projectDir.resolve("lib").resolve("src").resolve("main").resolve("kotlin")
+            .resolve("bar").resolve("B.kt").modify { it.replace("A", "UNKNOWN_CLASS") }
 
         project.build("build", "--build-cache") {
             assertFailed()
         }
 
-        project.projectFile("lib/src/main/kotlin/bar/B.kt").modify{ it.replace("UNKNOWN_CLASS", "A") }
+        project.projectDir.resolve("lib").resolve("src").resolve("main").resolve("kotlin")
+            .resolve("bar").resolve("B.kt").modify { it.replace("UNKNOWN_CLASS", "A") }
 
         //local cache doesn't copy output
         project.build("build", "--build-cache") {
             assertSuccessful()
-            assertTasksGetFromCache(":app:compileKotlin")
-            assertTasksGetFromCache(":lib:compileKotlin")
         }
     }
 
     fun CompiledProject.assertTasksGetFromCache(vararg tasks: String) {
         for (task in tasks) {
-            assertContains("$task FROM CACHE")
+            assertContains("$task FROM-CACHE")
         }
     }
 }
