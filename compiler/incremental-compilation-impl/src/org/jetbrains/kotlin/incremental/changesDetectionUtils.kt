@@ -18,6 +18,10 @@ internal fun getClasspathChanges(
     reporter: ICReporter?
 ): ChangesEither {
     val classpathSet = HashSet<File>()
+
+    //TODO make true property
+    val buildHistoryFeature = true
+
     for (file in classpath) {
         when {
             file.isFile -> classpathSet.add(file)
@@ -48,17 +52,22 @@ internal fun getClasspathChanges(
         val allBuilds = BuildDiffsStorage.readDiffsFromFile(historyFile, reporter = reporter)
             ?: return ChangesEither.Unknown("Could not read diffs from $historyFile")
 
-        if (allBuilds.any { it.ts <= lastBuildTS }) {
-            reporter?.report { "Previous builds before $lastBuildTS was found" }
-        }
-//        val (knownBuilds, newBuilds) = allBuilds.partition { it.ts <= lastBuildTS }
-//
-//        //TODO do we need old builds? Is hash enough?
-//        if (knownBuilds.isEmpty()) {
-//            return ChangesEither.Unknown("No previously known builds for $historyFile")
-//        }
+        val buildDiffs =
+            if (buildHistoryFeature) {
+                if (allBuilds.any { it.ts <= lastBuildTS }) {
+                    reporter?.report { "Previous builds before $lastBuildTS was found" }
+                }
+                allBuilds
+            } else {
+                val (knownBuilds, newBuilds) = allBuilds.partition { it.ts <= lastBuildTS }
 
-        for (buildDiff in allBuilds) {
+                if (knownBuilds.isEmpty()) {
+                    return ChangesEither.Unknown("No previously known builds for $historyFile")
+                }
+                newBuilds
+            }
+
+        for (buildDiff in buildDiffs) {
             if (!buildDiff.isIncremental) return ChangesEither.Unknown("Non-incremental build from dependency $historyFile")
 
             val dirtyData = buildDiff.dirtyData

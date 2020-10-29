@@ -335,6 +335,9 @@ abstract class IncrementalCompilerRunner<
 
     open fun runWithNoDirtyKotlinSources(caches: CacheManager): Boolean = false
 
+    //TODO make true property
+    val buildHistoryFeature = true
+
     private fun processChangesAfterBuild(
         compilationMode: CompilationMode,
         currentBuildInfo: BuildInfo,
@@ -347,8 +350,14 @@ abstract class IncrementalCompilerRunner<
             BuildDifference(currentBuildInfo.startTS, false, emptyDirtyData)
         }
 
+        val prevDiffs = if (!buildHistoryFeature) {
+            BuildDiffsStorage.readFromFile(buildHistoryFile, reporter)?.buildDiffs ?: emptyList()
+        } else {
+            emptyList()
+        }
+
         //TODO old history build should be restored in case of build fail
-        BuildDiffsStorage.writeToFile(buildHistoryFile, BuildDiffsStorage(listOf(newDiff)), reporter)
+        BuildDiffsStorage.writeToFile(buildHistoryFile, BuildDiffsStorage(prevDiffs + newDiff), reporter)
     }
 
     companion object {
