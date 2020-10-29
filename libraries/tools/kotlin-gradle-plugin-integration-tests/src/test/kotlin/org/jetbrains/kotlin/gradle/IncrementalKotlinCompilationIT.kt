@@ -17,12 +17,10 @@ class IncrementalKotlinCompilationIT : BaseGradleIT() {
             "        directory = new File(rootDir, \"build-cache\")\n" +
             "    }\n" +
             "}"
+
     @Test
     fun compileKotlinWithGradleCache() {
-        val project = Project("incrementalMultiproject")
-        project.setupWorkingDir()
-
-        project.gradleSettingsScript().modify { "$it\n$localBuildCacheSettings" }
+        val project = createIncrementalProjectWithCache()
 
         project.build("build", "--build-cache") {
             assertSuccessful()
@@ -45,10 +43,7 @@ class IncrementalKotlinCompilationIT : BaseGradleIT() {
 
     @Test
     fun compileKotlinRestoreBuildDirAfterFail() {
-        val project = Project("incrementalMultiproject")
-        project.setupWorkingDir()
-
-        project.gradleSettingsScript().modify { "$it\n$localBuildCacheSettings" }
+        val project = createIncrementalProjectWithCache()
 
         project.build("build", "--build-cache") {
             assertSuccessful()
@@ -69,6 +64,36 @@ class IncrementalKotlinCompilationIT : BaseGradleIT() {
         project.build("build", "--build-cache") {
             assertSuccessful()
         }
+    }
+
+    @Test
+    fun testBuildHistoryRelocation() {
+        val project = createIncrementalProjectWithCache()
+
+        project.build("build", "--build-cache") {
+            assertSuccessful()
+            assertTasksExecuted(":app:compileKotlin", ":lib:compileKotlin")
+        }
+
+        val buildCache = project.projectDir.resolve("build-cache")
+        buildCache.exists()
+
+        val project2 = createIncrementalProjectWithCache()
+        buildCache.copyRecursively(project2.projectDir.resolve("build-cache"))
+
+        project2.build("build", "--build-cache") {
+            assertSuccessful()
+            assertTasksGetFromCache(":app:compileKotlin", ":lib:compileKotlin")
+        }
+
+    }
+
+    private fun createIncrementalProjectWithCache(): Project {
+        val project = Project("incrementalMultiproject")
+        project.setupWorkingDir()
+
+        project.gradleSettingsScript().modify { "$it\n$localBuildCacheSettings" }
+        return project
     }
 
     fun CompiledProject.assertTasksGetFromCache(vararg tasks: String) {
