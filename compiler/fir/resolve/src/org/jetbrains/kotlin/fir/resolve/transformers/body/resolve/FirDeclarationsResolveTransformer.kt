@@ -121,13 +121,14 @@ open class FirDeclarationsResolveTransformer(transformer: FirBodyResolveTransfor
             dataFlowAnalyzer.enterProperty(property)
             withFullBodyResolve {
                 withLocalScopeCleanup {
+                    val primaryConstructorParametersScope = context.getPrimaryConstructorParametersScopeWithoutMatchingParameters()
                     context.withContainer(property) {
                         if (property.delegate != null) {
-                            addLocalScope(context.getPrimaryConstructorParametersScope())
+                            addLocalScope(primaryConstructorParametersScope)
                             transformPropertyWithDelegate(property)
                         } else {
                             withLocalScopeCleanup {
-                                addLocalScope(context.getPrimaryConstructorParametersScope())
+                                addLocalScope(primaryConstructorParametersScope)
                                 property.transformChildrenWithoutAccessors(returnTypeRef)
                             }
                             if (property.initializer != null) {
@@ -577,7 +578,7 @@ open class FirDeclarationsResolveTransformer(transformer: FirBodyResolveTransfor
             }
 
             val scopeWithValueParameters = if (constructor.isPrimary) {
-                context.getPrimaryConstructorParametersScope()
+                context.getPrimaryConstructorParametersScopeWithoutMatchingParameters()
             } else {
                 constructor.scopeWithParameters()
             }
@@ -625,11 +626,7 @@ open class FirDeclarationsResolveTransformer(transformer: FirBodyResolveTransfor
         return withLocalScopeCleanup {
             dataFlowAnalyzer.enterInitBlock(anonymousInitializer)
             addLocalScope(
-                context.getPrimaryConstructorParametersScope()?.removeMatchingVariables(
-                    (context.containerIfAny as? FirClass<*>)?.declarations?.filterIsInstance<FirProperty>()?.filter {
-                        it.source?.kind == FirFakeSourceElementKind.PropertyFromParameter
-                    }.orEmpty()
-                )
+                context.getPrimaryConstructorParametersScopeWithoutMatchingParameters()
             )
             addNewLocalScope()
             val result =

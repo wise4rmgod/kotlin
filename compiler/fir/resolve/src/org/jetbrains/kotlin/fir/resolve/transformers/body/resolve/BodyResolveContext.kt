@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.fir.resolve.transformers.body.resolve
 
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
+import org.jetbrains.kotlin.fir.FirFakeSourceElementKind
 import org.jetbrains.kotlin.fir.PrivateForInline
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.resolve.FirTowerDataContext
@@ -87,6 +88,15 @@ class BodyResolveContext(
 
     fun getPrimaryConstructorParametersScope(): FirLocalScope? =
         towerDataContextsForClassParts?.primaryConstructorParametersScope
+
+    fun getPrimaryConstructorParametersScopeWithoutMatchingParameters(): FirLocalScope? {
+        val baseScope = getPrimaryConstructorParametersScope() ?: return null
+        return baseScope.removeMatchingVariables(
+            (containerIfAny as? FirClass<*>)?.declarations?.filterIsInstance<FirProperty>()?.filter {
+                it.source?.kind == FirFakeSourceElementKind.PropertyFromParameter
+            }.orEmpty()
+        )
+    }
 
     private fun firTowerDataContextsForClassParts() =
         towerDataContextsForClassParts.sure { "towerDataContextForStaticNestedClasses should not be null" }
